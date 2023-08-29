@@ -8,7 +8,7 @@ CROSS_UNVIERSE_CACHE_PATH = r'C:\Users\marcu\AppData\Local\Packages\PythonSoftwa
 
 UNIVERSE_LIST = ["russell_3000", "S&P_500"]
 
-def run():
+def main():
     """
     Runs data-injestion, pre-processing, and caching process for a user-specified universe.
     """
@@ -69,4 +69,4 @@ def run():
 
 if __name__ == '__main__':
 
-    run()
+    main()
