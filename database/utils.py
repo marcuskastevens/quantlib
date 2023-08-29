@@ -7,6 +7,20 @@ import datetime as dt
 from bs4 import BeautifulSoup
 
 
+def dict_to_df(data: dict) -> pd.DataFrame: 
+    """
+    Converts a multi-dimensional dictionary (e.g., what get_ohlc_data() returns) to a multi-index pd.DataFrame.
+
+    Args:
+        data (dict): general multi-dimensional dict.
+
+    Returns:
+        pd.DataFrame: newly converted multi-dimensional object.
+    """
+
+    return pd.concat(data, axis=0, keys=data.keys())
+
+
 def cache(data, path: str):
     """
     Flexible function to pickle/cache any data structure to a given path.
@@ -70,20 +84,27 @@ def extend_ohlc_statistics(data: pd.DataFrame) -> pd.DataFrame:
     """
 
     # Fill missing data by first forward filling, such that [] [] [] a b c [] [] [] becomes [] [] [] a b c c c c
-    data.fillna(method='ffill', inplace=True)
+    data.fillna(method="ffill", inplace=True)
     # Fill missing data by then backwards filling, such that [] [] [] a b c c c c becomes a a a a b c c c c
-    data.fillna(method='bfill', inplace=True)
-
-    # Indicate if instrument is actively traded - rough measure
-    data["actively_traded"] = data['close'] != data['close'].shift(1)
+    data.fillna(method="bfill", inplace=True)
 
     # Compute return across entire OHLC specturm
-    for stat in ['open', 'high', 'low', 'close', 'adj_close']:
+    for stat in ["open", "high", "low", "close", "adj_close"]:
         # Log returns
         data[f"log_{stat}_returns"] = np.log(data[stat]/data[stat].shift(1)).dropna()
         # Arithmetic returns
         data[f"{stat}_returns"] = data[stat].pct_change().dropna()
+        
+    # Indicate if instrument is actively traded - rough measure
+    condition_1 = data["adj_close_returns"] != np.inf
+    condition_2 = data["adj_close_returns"] != -1.0
+    condition_3 = data["adj_close_returns"] != 0
+    data["actively_traded"] = condition_1 | condition_2 | condition_3
 
+    # Replace np.inf with np.nan
+    for stat in ["open", "high", "low", "close", "adj_close"]:
+        data[f"{stat}_returns"] = data[f"{stat}_returns"].replace(np.inf, np.nan)
+    
     return data
 
 
@@ -156,16 +177,3 @@ def cache_cross_universe_statistics(ohlc_data: dict, path: str) -> None:
 
     return
 
-
-def dict_to_df(data: dict) -> pd.DataFrame: 
-    """
-    Converts a multi-dimensional dictionary (e.g., what get_ohlc_data() returns) to a multi-index pd.DataFrame.
-
-    Args:
-        data (dict): general multi-dimensional dict.
-
-    Returns:
-        pd.DataFrame: newly converted multi-dimensional object.
-    """
-
-    return pd.concat(data, axis=0, keys=data.keys())
