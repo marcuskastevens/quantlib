@@ -9,7 +9,7 @@ import copy
 '''
 Formula: 
 
-Hypothesis:
+Hypothesis: long-only risk parity time series momentum.
 '''
 
 class alpha_001:
@@ -92,17 +92,17 @@ class alpha_001:
             if i > 20:
                 break
 
-        # Get binary votes from alpha singal (here this is long only)
+        # Get indicator votes from alpha singal (here this is long only)
         self.votes = self.raw_signal.mask(self.raw_signal > 0, 1).mask(self.raw_signal <= 0, 0)
         
-        # Get signal conviction -- once you have a multi-strategy system, you can create a signal for each instrument that generates dynamic conviction levels in each instrument
-        # alpha_data['signal_strength'] = alpha_data['votes'].apply(lambda x: np.sum(x) / len(x.dropna()), axis=1)
+        # Get risk weights from indicator votes (equal risk allocation)
+        self.risk_w = self.votes.apply(lambda x: np.abs(x) if isinstance(x, float) else np.abs(x) / np.sum(np.abs(x)), axis=1)  
         
-        # Asset level vol targeting (equal risk allocation)
+        # Asset-level vol targeting (equal risk allocation)
         daily_vol_target = self.vol_target / np.sqrt(252)
-        self.positions_vol_target = self.votes.apply(lambda x: np.abs(x) * daily_vol_target if isinstance(x, float) else np.abs(x) * daily_vol_target / np.sum(np.abs(x)), axis=1)   
+        self.positions_vol_target = self.risk_w * daily_vol_target 
 
-        # Asset level vol scalars 
+        # Asset-level vol scalars 
         vol_scalars = self.positions_vol_target / self.ex_ante_vol
 
         # Nomial positions

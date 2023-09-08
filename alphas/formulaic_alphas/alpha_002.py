@@ -9,10 +9,10 @@ import copy
 '''
 Formula: 
 
-Hypothesis:
+Hypothesis: long-short z-score dynamically risk weighted time series momentum.
 '''
 
-class alpha_001:
+class alpha_002:
 
     def __init__(self, db_data=None, returns_data=None):
         """
@@ -87,23 +87,26 @@ class alpha_001:
             if i > 20:
                 break
 
-        # Get binary votes from alpha singal (here this is long only)
-        self.votes = self.raw_signal.mask(self.raw_signal > 0, 1).mask(self.raw_signal <= 0, 0)
-        
-        # Get signal conviction -- once you have a multi-strategy system, you can create a signal for each instrument that generates dynamic conviction levels in each instrument
-        # alpha_data['signal_strength'] = alpha_data['votes'].apply(lambda x: np.sum(x) / len(x.dropna()), axis=1)
-        
-        # Asset level vol targeting (equal risk allocation)
-        daily_vol_target = self.vol_target / np.sqrt(252)
-        self.positions_vol_target = self.votes.apply(lambda x: np.abs(x) * daily_vol_target if isinstance(x, float) else np.abs(x) * daily_vol_target / np.sum(np.abs(x)), axis=1)   
+        # Convert raw signal to z-score
+        self.z_score_signal = self.raw_signal.apply(lambda x: alpha_utils.z_score(x), axis=1)
 
-        # Asset level vol scalars 
+        # Get indicator votes from alpha singal
+        self.votes = self.z_score_signal.mask(self.z_score_signal > 0, 1).mask(self.z_score_signal < 0, -1)
+
+        # Get risk weights from z-score
+        self.risk_w = np.abs(self.z_score_signal).div(np.abs(self.z_score_signal).sum(axis=1) , axis='index')
+
+        # Asset-level vol targeting (dynamic, view-based risk allocation)
+        daily_vol_target = self.vol_target / np.sqrt(252)
+        self.positions_vol_target = self.risk_w * daily_vol_target
+
+        # Asset-level vol scalars 
         vol_scalars = self.positions_vol_target / self.ex_ante_vol
 
         # Nomial positions
         self.positions = self.votes * vol_scalars
 
-        # Proportional weights (not nominal positions)
+        # Proportional dollar weights (not nominal positions)
         self.w = self.positions / np.abs(self.positions).sum(axis=1)
        
         # Gross notional value (leverage)
@@ -145,4 +148,3 @@ class alpha_001:
         self.cumulative_performance_attribution = (final_cumulative_returns / final_cumulative_returns.sum()).rename('cumulative_performance_attribution')
 
         return
-    

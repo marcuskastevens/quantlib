@@ -36,12 +36,37 @@ def quantiles(signal: pd.Series, q = .1):
         pd.Series: Signal with values outside the quantiles set to NaN.
     """
 
-    lower_quantile = np.quantile(signal, q=q)
-    upper_quantile = np.quantile(signal, q=1-q)
+    lower_quantile = signal.quantile(q=q)
+    upper_quantile = signal.quantile(q=1-q)
     
     quantile_signal = signal.where((signal < lower_quantile) | (signal > upper_quantile)).dropna()
 
     return quantile_signal
+
+def quantile_votes(signal: pd.Series, q = .1):
+    """
+    Isolates values in the bottom and top quantiles of a signal.
+    Assigns indicator votes to bottom and top quantiles.
+    
+    Parameters:
+        signal (pd.Series): Series of alpha signals.
+        q (float, optional): Quantile threshold (default: 0.1).
+        
+    Returns:
+        pd.Series: Signal with values outside the quantiles set to NaN.
+    """
+
+    lower_quantile = signal.quantile(q=q)
+    upper_quantile = signal.quantile(q=1-q)
+
+    shorts_index = list(signal.where(signal < lower_quantile).dropna().index)
+    longs_index = list(signal.where(signal > upper_quantile).dropna().index)   
+    
+    quantile_votes = pd.Series(index=shorts_index+longs_index)
+    quantile_votes.loc[shorts_index] = -1
+    quantile_votes.loc[longs_index] = 1
+    
+    return quantile_votes
 
 def z_score(signal: pd.Series):
     """
